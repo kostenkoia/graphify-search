@@ -1,0 +1,90 @@
+id: code-review-graph
+kind: external
+package: code-review-graph
+version_seen: 2.3.7
+
+sources:                              # why: only the shipped_* entries are quoted below; the rest record provenance and are not expected to be cited
+  homepage: https://github.com/tirth8205/code-review-graph
+  commands: https://github.com/tirth8205/code-review-graph/blob/main/docs/COMMANDS.md
+  shipped_skill: skills/explore-codebase/SKILL.md
+  shipped_prompts: code_review_graph/prompts.py
+  cli_help: "code-review-graph --help"
+
+# why: semantic_search_nodes_tool runs whichever mode matches whether vectors were built, and
+# does not announce which mode it used
+configurations:
+  vector:
+    prepared_by: "code-review-graph embed --repo <copy>, once at snapshot time"
+    source: "search.py hybrid_search merges FTS5 BM25 with vector embeddings by reciprocal rank fusion; docs/COMMANDS.md is not frozen, so it is named as a pointer and never quoted"
+    status: the default configuration this system's harness.yaml names
+  keyword:
+    source: "the same tool with no vectors built"
+    status: >-
+      the documented degradation, declared so it can be run as its own configuration and
+      contrasted with vector; it needs no embedding step and no frozen weights
+
+# why: two of the vendor's own documents prescribe different tool-call orders; the chosen one
+# decides which order the measurement follows
+primary_recipe:
+  chosen: code_review_graph/prompts.py
+  rule:
+    quote: "Prefer targeted queries (query_graph with a specific symbol) over broad scans (list_communities with full members)."
+  conflicts_with: skills/explore-codebase/SKILL.md
+  conflicting_order: "stats -> architecture -> communities -> semantic search -> flows"
+  reason: >
+    The owner pinned the targeted order because prompts.py is the vendor module the debug
+    workflow itself dispatches to, and its rule above states the preference in the vendor's own
+    words. Only the pinned order is executed, so this tree offers no comparison between the two:
+    a reader who wants one runs the survey order as its own configuration.
+
+# why: the measurement follows the vendor's own prescribed workflow; nothing here is invented
+prescribed_workflow:
+  source: "prompts.py § _TOKEN_EFFICIENCY_PREAMBLE + debug_issue_prompt; skills/explore-codebase/SKILL.md"
+  rules:
+    - quote: 'ALWAYS call `get_minimal_context` first with a task description.'
+    - quote: 'Use `detail_level="minimal"` on all tool calls unless the minimal output is insufficient.'
+    - quote: 'Only escalate to `detail_level="standard"` or `"verbose"` for the specific entities that need deeper inspection.'
+    - quote: "Never request more than 3 tool calls per turn unless absolutely necessary."
+    - quote: "Prefer targeted queries (query_graph with a specific symbol) over broad scans (list_communities with full members)."
+    - quote: "Target: complete any review/debug/refactor task in ≤5 tool calls and ≤800 total output tokens."
+  steps:                              # why: follows debug_issue, the vendor workflow closest to answering a question about the code
+    - id: 1
+      call: 'get_minimal_context(task="debug: <question>")'
+    - id: 2
+      call: 'semantic_search_nodes(query=<keywords from description>, detail_level="minimal", limit=5)'
+      note: keywords, not the sentence
+    - id: 3
+      call: 'query_graph(pattern="callers_of", target=<name>, detail_level="minimal")'
+      note: for the top 1-2 results only
+    - id: 4
+      call: 'get_flow(name=<relevant flow>)'
+      note: only if the question involves an execution flow
+    - id: 5
+      call: 'get_review_context / get_impact_radius'
+      note: only to trace the blast radius of a specific change
+
+# why: the fixed recipe departs from step 2's literal argument, and the departure is stated here
+# rather than presented as the vendor's own choice
+deviations:
+  - step: 2
+    prescribed: 'detail_level="minimal"'
+    executed: 'detail_level="standard"'
+    ground:
+      quote: 'Use `detail_level="minimal"` on all tool calls unless the minimal output is insufficient.'
+      why: >-
+        a hit is a file path with a line number, and the minimal shape carries none
+        (tools/query.py keeps only name, kind, file_path and score), so minimal output is
+        insufficient for this measurement by construction rather than by preference
+    not_covered_by:
+      quote: 'Only escalate to `detail_level="standard"` or `"verbose"` for the specific entities that need deeper inspection.'
+      why: >-
+        this rule describes escalating after candidates are known, while the search call that
+        finds them is what escalates here, so the cost recorded for this cell is ours rather
+        than the vendor's recipe's
+
+properties:
+  granularity: symbol                 # inv: the index records line_start and line_end, and the fixed recipe requests them by calling with detail_level: standard
+  ranked: full-text ranking; keyword mode scores 3.0 exact name, 2.0 prefix, 1.0 contains (search.py _keyword_search)
+  deterministic: verified byte for byte on defaults
+  paths_in_index: absolute            # inv: the scoring adapter strips the root build.yaml records as build_cwd, so records carry corpus-relative paths
+  search_mode_without_embeddings: keyword with AND semantics; a full sentence returns nothing

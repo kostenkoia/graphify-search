@@ -1,0 +1,47 @@
+adapter: graphify
+# inv: the version the recorded `version` step must print; `score.records` refuses a run whose
+# probe carries any other
+# why: this is the vendor release the docs below were frozen from, so a different installation
+# needs both this key and those hashes rewritten -- an older document authorises no quote of a
+# newer one
+version: {cli: "0.9.27"}
+invocation:
+  # inv: these three name the tool as installed on the machine that runs the benchmark -- the
+  # launcher, the Python that runs it, and that Python's site-packages, whose contents are hashed
+  # into every ledger row
+  # why: they ship as placeholders because no path here can name an installation this repository
+  # does not contain; `prepare` refuses with `launcher missing:` while one does not exist
+  package:
+    launcher: /path/to/your/envs/graphify/bin/graphify
+    interpreter: /path/to/your/envs/graphify/bin/python
+    site: /path/to/your/envs/graphify/lib/python3.14/site-packages
+  subcommands:
+    query:     {positional: 1, flags: {}, rejected: [--dfs, --budget, --context, --graph]}
+    # why: the owner opened the vendor's own step 3 to a runner; the shapes are the vendor's usage
+    # lines, `graphify explain "<node>"` and `graphify path "<source>" "<target>"`, and --graph is
+    # refused on both for the reason it is refused on query -- it points the run at another graph
+    explain:   {positional: 1, flags: {}, rejected: [--graph]}
+    path:      {positional: 2, flags: {}, rejected: [--graph]}
+    --version: {positional: 0, flags: {}}
+  rejected_subcommands: [update, save-result, reflect, add, watch, god-nodes, affected, benchmark, --help]
+fixed_steps:
+  - {name: version, argv: [graphify, --version], quote: null, system_call: true}
+  - {name: vocab_extract, script: docs/scripts/vocab_extract.py, quote: "Extract the token vocabulary from node labels:", system_call: false, checks: [expansion]}
+  - {name: query, argv: [graphify, query, "<expansion>"], quote: "Build the **expanded query string** by joining the selected tokens with spaces.", system_call: true, ceiling_call: true}
+# NOT DERIVED: graphify states no budget of its own anywhere in its documentation; five is the
+# owner's number, chosen to match the one code-review-graph does state, so neither system is
+# measured under a looser budget than the other
+ceiling: {quote: null, source: null, kind: owner, calls: 5}
+default_configuration: default
+configurations: {default: {index: indexes/graphify, search_mode: null}}
+sandbox_layout: {graphify-out: "<artifacts>"}
+# why: the query step writes graphify-out/cache/last_query_stamp, a wall-clock file that is
+# not part of any answer; the index's build.yaml excludes that prefix so the repeatability
+# gate compares what the query printed, and this recipe is the one issued with that record
+allowed_scripts: {docs/scripts/vocab_extract.py: "1897280f5c398f68915702abe2778532473d172433bb534c4f7f63f7b352d5a4"}
+environment: {PATH: "/usr/bin:/bin", LANG: "C.UTF-8", NO_PROXY: "*"}
+models: {}
+volatile: []
+docs:
+  SKILL.md: {sha256: "b5c95cae5ba665056fa8632b827c895f3bb32878c03c9a3963a8e045993f408c"}
+  query.md: {sha256: "e563ddcb1e155aa230f107e5ef9380bc1249c5cd8241128de7ed8a7bd9c20cf5"}

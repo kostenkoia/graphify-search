@@ -1,0 +1,1 @@
+<OWNER> ALL=(bench) NOPASSWD: <H> -m benchmark.harness attempt *, <H> -m benchmark.harness abort *, <H> -m benchmark.harness summary, <H> -m benchmark.harness report *, <H> -m benchmark.harness build-symbols *, <H> -m benchmark.harness freeze-model *

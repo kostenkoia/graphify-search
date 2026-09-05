@@ -1,0 +1,10 @@
+Node: alpha()
+  ID:        pkg_a_alpha
+  Source:    pkg/a.py L10
+  Type:      code
+  Community: alpha
+  Degree:    2
+
+Connections (2):
+  <-- test_a.py [imports] [EXTRACTED] tests/test_a.py:L3
+  <-- beta() [calls] [EXTRACTED] pkg/b.py:L20

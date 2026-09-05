@@ -1,0 +1,37 @@
+id: graphify-search-minilm
+kind: own
+package: graphify-search
+version_seen: 0.6.0
+sources:
+  homepage: https://github.com/kostenkoia/graphify-search
+  shipped_skill: SKILL.md
+prescribed_workflow:
+  source: "SKILL.md § 'Ask'"
+  steps:
+    - id: 1
+      name: query
+      quote: "graphify-search query \"<the user's question, verbatim>\""
+      command: 'graphify-search query "<question>" --require-dense'
+      note: the question is passed as the user wrote it; no expansion step exists
+# why: the recipe is one call and the call budget is this harness's own cap (SKILL.md states
+# none), so nothing here departs from what SKILL.md prescribes; the key is kept as an empty list rather than dropped, so a later
+# departure has a place to be written down instead of being made silently
+deviations: []
+
+properties:
+  # inv: this cell differs from graphify-search's only in where the vectors come from -- the same
+  # package, the same recipe, the same question set, a different embedder
+  embedder: sentence-transformers all-MiniLM-L6-v2, loaded into the query process itself and run
+    on the CPU; no server is contacted and the weights are the frozen copy harness.yaml pins
+  prefixes: none; the model was trained on raw text, so neither the document nor the query side
+    carries one, and the index records both as the empty string
+  # inv: records path and start line only, never an end line, so the adapter records no end
+  granularity: symbol_point
+  ranked: cosine similarity rounded to three decimals, ties by path then start
+  deterministic: >-
+    the three probe texts of tests/test_local_model.py embed to the same 4608 float32 bytes in two
+    separate processes. That test is the check: it runs the two processes and compares the raw
+    bytes. It skips where the installed sentence-transformers major is below the [local] extra's
+    floor of 6, and skips in a bare clone, because models/ is untracked -- run scripts/freeze_model
+    first, as benchmark/README.md step 4 describes, or the claim stands unchecked
+  budget: 6000 characters over the results array; the ladder drops snippet, edges, then k

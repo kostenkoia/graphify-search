@@ -1,0 +1,3 @@
+# Every change to a frozen build.yaml that the ledger audit is to accept, one entry per change,
+# each carrying the reason a later reader can check against the diff.
+transitions: []

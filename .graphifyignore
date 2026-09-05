@@ -1,0 +1,10 @@
+# Corpus definition for measurement. Read after .gitignore and able only to
+# exclude more, so every entry here narrows what the graph covers.
+#
+# The measurement instrument is not part of the measured corpus. Its code is
+# tracked so a run can name the version that produced it, but a graph that
+# contains the tool doing the measuring inflates the file universe every
+# precision/recall figure is quoted against, with files no question about the
+# corpus can ever be about.
+
+benchmark/

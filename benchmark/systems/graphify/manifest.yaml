@@ -1,0 +1,93 @@
+id: graphify
+kind: external
+package: graphifyy
+version_seen: 0.9.27
+
+sources:                              # why: only the shipped_* entries are quoted below; the rest record provenance and are not expected to be cited
+  homepage: https://github.com/Graphify-Labs/graphify
+  issues: https://github.com/Graphify-Labs/graphify/issues
+  # why: the skill files are installed into the reader's own agent directory rather than served
+  # at a URL, so the resolvable source is the package they arrive in; the frozen copies under
+  # docs/ are what the quotes below are checked against
+  package_source: https://pypi.org/project/graphifyy/
+  shipped_skill: "<agent skills dir>/graphify/SKILL.md, frozen here as docs/SKILL.md"
+  shipped_reference: "<agent skills dir>/graphify/references/query.md, frozen here as docs/query.md"
+  cli_help: "graphify --help"
+
+# why: the measurement follows the vendor's own prescribed workflow; nothing here is invented
+prescribed_workflow:
+  source: "SKILL.md § 'For /graphify query' -> references/query.md"
+  steps:
+    - id: 0
+      name: constrained query expansion
+      required: true
+      quote: >-
+        graphify's `query` CLI matches nodes via case-folded substring + IDF — there is
+        **no stemming, no synonyms, no cross-language match** inside the binary, and the
+        inline fallback below matches the same way.
+      procedure: >
+        Extract the token vocabulary from node labels into .vocab.txt, then select up to
+        12 tokens from that exact list matching the query intent. Inventing tokens is
+        forbidden. Print the selection. If nothing matches, stop and say the corpus has no
+        relevant vocabulary - do not proceed to traversal.
+    - id: 1
+      name: traversal
+      quote: >-
+        Build the **expanded query string** by joining the selected tokens with spaces. Use
+        this string as `QUESTION` below — NOT the original user question.
+      command: 'graphify query "<expanded tokens>"'
+      modes: {bfs: default, dfs: "--dfs, for tracing a specific chain"}
+    - id: 2
+      name: answer
+      quote: >-
+        Answer using only what the graph output contains, and quote `source_location`
+        when citing a specific fact.
+      # why: SKILL.md also states "Never invent an edge" as the same discipline in stricter words
+      note: the agent does not read the project's files; the graph output is the answer
+    - id: 3
+      name: targeted follow-ups
+      commands: ['graphify explain "<node>"', 'graphify path "<A>" "<B>"']
+      note: both take a node label, not a question
+
+  excluded_from_measurement:
+    step: "graphify save-result --question ... --answer ... --nodes ..."
+    quote: "Add an `--outcome` so future sessions learn from this one"
+    reason: >
+      It writes a memory file the next session is told to read, so one run would feed the next
+      and the runs would stop being independent.
+
+  session_start_optional:
+    quote: >-
+        At the **start** of graph work, refresh and read the lessons: run
+        `graphify reflect --if-stale`
+    excluded_from_measurement: true
+    reason: it accumulates state across sessions, which a frozen snapshot must not carry
+
+# why: the recipe round departs from step 0's literal instruction, and the departure is stated here
+# rather than presented as the vendor's own choice
+deviations:
+  - step: 0
+    prescribed: 'an agent reads .vocab.txt and selects the tokens that semantically match the query intent'
+    executed: >-
+      benchmark/harness/expand.py selects them: every vocabulary token sharing a 4-character
+      prefix with a content word of the question, the word itself first, round-robin over the
+      words, capped at 12; an empty selection halts the query step, as step 0 prescribes
+    ground:
+      quote: 'You MUST pick only tokens present in the vocabulary file. Do NOT invent tokens.'
+      why: >-
+        the recipe round runs no model, so the selection has to be a rule that leaves no choice;
+        a prefix match keeps the vendor's hard constraint — every token comes from the
+        vocabulary file — and removes the owner's hand from any one question
+    not_covered_by:
+      quote: 'select **up to 12 tokens from this exact list** that semantically match the query intent'
+      why: >-
+        a prefix match is not semantic selection: it takes `happy` for `happens` and `carton` for
+        `cart`, and it does no cross-language or morphology mapping, so this cell measures graphify
+        plus a mechanical stemmer rather than graphify as its skill prescribes; the driven round,
+        where a model performs step 0, is the configuration the vendor describes
+
+properties:
+  granularity: symbol_point           # inv: records path and start line only, never an end line
+  ranked: seeds are scored, then traversal order
+  deterministic: verified on defaults; lost with --context filters
+  budget: internal, ~2000 tokens by default, truncation is announced in the output

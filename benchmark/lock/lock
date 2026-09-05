@@ -1,0 +1,25 @@
+#!/bin/bash
+# Seal the instrument as it stands and close it.
+source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
+need_root lock
+cd "$ROOT"
+if [ "$DRY_RUN" = 0 ]; then
+  dirty="$(git -C "$ROOT" status --porcelain --untracked-files=all | awk '{print $2}' | while read -r f; do
+    "$HARNESS_PY" -m benchmark.harness seal --paths instrument | grep -qx "$f" && echo "$f"; done)" || true
+  [ -z "$dirty" ] || { echo "lock refuses a dirty instrument:"; echo "$dirty"; exit 1; } >&2
+fi
+run "$HARNESS_PY" -m benchmark.harness seal
+if [ "$DRY_RUN" = 1 ] || ! git -C "$ROOT" diff --quiet -- benchmark/INSTRUMENT.yaml; then
+  # why: sed's `s/^reason: //p` reads the YAML source text, not the value it names — a quoted
+  # scalar's own quotes and doubled `''` would land in the commit subject verbatim; the seal
+  # verb just wrote INSTRUMENT.yaml, so the harness's own YAML reader decodes the same reason
+  reason="$("$HARNESS_PY" -c 'import yaml,sys; print(yaml.safe_load(open(sys.argv[1]))["reason"])' \
+    "$BENCH/INSTRUMENT.yaml" 2>/dev/null || true)"
+  run "sudo -u \"$OWNER\" git -C \"$ROOT\" add benchmark/INSTRUMENT.yaml"
+  run "sudo -u \"$OWNER\" git -C \"$ROOT\" commit -q --only -m \"chore(benchmark): seal — $reason\" -- benchmark/INSTRUMENT.yaml"
+else
+  echo "nothing changed"
+fi
+lock_instrument
+run rm "$BENCH/lock/UNLOCKED"
+echo "sealed and locked"

@@ -1,0 +1,6 @@
+Traversal: BFS depth=2 | Start: ['alpha()'] | 2 nodes found
+
+NODE alpha() [src=pkg/a.py loc=L10 community=alpha]
+NODE beta() [src=pkg/b.py loc=L20 community=alpha]
+EDGE alpha() --calls [EXTRACTED]--> beta() at=pkg/a.py:L11
+EDGE beta() --imports [EXTRACTED]--> alpha()

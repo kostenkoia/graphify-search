@@ -1,0 +1,99 @@
+adapter: code_review_graph
+# inv: the version the recorded `version` step must print; `score.records` refuses a run whose
+# probe carries any other
+# why: this is the vendor release the docs below were frozen from, so a different installation
+# needs both this key and those hashes rewritten -- an older document authorises no quote of a
+# newer one
+version: {cli: "2.3.7"}
+invocation:
+  # inv: these three name the tool as installed on the machine that runs the benchmark -- the
+  # launcher, the Python that runs it, and that Python's site-packages, whose contents are hashed
+  # into every ledger row
+  # why: they ship as placeholders because no path here can name an installation this repository
+  # does not contain; `prepare` refuses with `launcher missing:` while one does not exist
+  package:
+    launcher: /path/to/your/envs/code-review-graph/bin/code-review-graph
+    interpreter: /path/to/your/envs/code-review-graph/bin/python
+    site: /path/to/your/envs/code-review-graph/lib/python3.14/site-packages
+  subcommands:
+    --version: {positional: 0, flags: {}}
+  # inv: `serve` is started by mcp.py, never through check_call
+  rejected_subcommands: [build, embed, serve, --help]
+  tools:
+    get_minimal_context_tool:   {keys: {task: {literal_prefix: ["debug: "]}}, rejected: [repo_root, base, changed_files]}
+    semantic_search_nodes_tool: {keys: {query: {}, detail_level: {literal: [minimal, standard], source: "our restriction: debug_prompt.md rule 3 also permits verbose, which tools/query.py treats identically to standard since it branches only on minimal; the recipe calls with standard"}, limit: {literal: [5], source: "debug recipe step 2"}}, rejected: [repo_root, kind, model, provider]}
+    list_graph_stats_tool:      {keys: {}, rejected: [repo_root]}
+fixed_steps:
+  - {name: version, argv: [code-review-graph, --version], quote: null, system_call: true}
+  - {name: minimal_context, tool: get_minimal_context_tool, args: {task: "debug: <question>"}, quote: "ALWAYS call `get_minimal_context` first", system_call: true, ceiling_call: true}
+  # why: standard rather than the prescribed minimal, which keeps only name/kind/file_path/score
+  # (tools/query.py) and so could yield no `place` at all; manifest.yaml records the departure
+  - {name: search, tool: semantic_search_nodes_tool, args: {query: "<expansion>", detail_level: standard, limit: 5}, quote: "semantic_search_nodes", system_call: true, ceiling_call: true}
+# why: the numbers are the vendor's own, taken from the quoted sentence into fields so the
+# harness can hold a run to them instead of reading prose; `calls` is what a run is stopped
+# at, `output_tokens` is recorded only, because the vendor's own prescribed recipe can already
+# exceed it, and enforcing it would forbid the workflow being measured
+ceiling: {quote: "≤5 tool calls and ≤800 total output tokens", source: docs/skill.md, kind: target,
+          calls: 5, output_tokens: 800}
+default_configuration: vector
+configurations:
+  vector:  {index: indexes/code-review-graph-vector, search_mode: [semantic, hybrid]}
+  keyword: {index: indexes/code-review-graph, search_mode: [keyword, fts], status: declared}
+sandbox_layout: {.code-review-graph: "<artifacts>"}
+environment:
+  PATH: "/usr/bin:/bin"
+  LANG: "C.UTF-8"
+  NO_PROXY: "*"
+  HF_HUB_OFFLINE: "1"
+  TRANSFORMERS_OFFLINE: "1"
+  HF_HUB_DISABLE_PROGRESS_BARS: "1"
+  HF_HUB_DISABLE_TELEMETRY: "1"
+  HF_HUB_DISABLE_IMPLICIT_TOKEN: "1"
+  TQDM_DISABLE: "1"
+  CRG_DATA_DIR: "<sandbox>/.code-review-graph"
+models:
+  models--sentence-transformers--all-MiniLM-L6-v2:
+    files:
+      .no_exist/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/adapter_config.json: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+      .no_exist/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/added_tokens.json: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+      .no_exist/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/chat_template.jinja: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+      .no_exist/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/preprocessor_config.json: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+      .no_exist/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/processor_config.json: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+      .no_exist/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/video_preprocessor_config.json: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+      blobs/44af2e3b0fa3a0b6239e48422972bf755f28fde0: dcd602d2fd35c203a247304a06fec6654a12f7941b739f9221a064fe8dc3b7f0
+      blobs/53aa51172d142c89d9012cce15ae4d6cc0ca6895895114379cacb4fab128d9db: 53aa51172d142c89d9012cce15ae4d6cc0ca6895895114379cacb4fab128d9db
+      blobs/59d594003bf59880a884c574bf88ef7555bb0202: fc1993fde0a95c24ec6c022539d41cf6e2f7c9721e5415d6fb6897472a9cd4b7
+      blobs/72b987fd805cfa2b58c4c8c952b274a11bfd5a00: 953f9c0d463486b10a6871cc2fd59f223b2c70184f49815e7efbcab5d8908b41
+      blobs/952a9b81c0bfd99800fabf352f69c7ccd46c5e43: 84e40c8e006c9b1d6c122e02cba9b02458120b5fb0c87b746c41e0207cf642cf
+      blobs/c79f2b6a0cea6f4b564fed1938984bace9d30ff0: acb92769e8195aabd29b7b2137a9e6d6e25c476a4f15aa4355c233426c61576b
+      blobs/cb202bfe2e3c98645018a6d12f182a434c9d3e02: be50c3628f2bf5bb5e3a7f17b1f74611b2561a3a27eeab05e5aa30f411572037
+      blobs/d1514c3162bbe87b343f565fadc62e6c06f04f03: 4be450dde3b0273bb9787637cfbd28fe04a7ba6ab9d36ac48e92b11e350ffc23
+      blobs/e7b0375001f109a6b8873d756ad4f7bbb15fbaa5: 303df45a03609e4ead04bc3dc1536d0ab19b5358db685b6f3da123d05ec200e3
+      blobs/fb140275c155a9c7c5a3b3e0e77a9e839594a938: 07eced375cec144d27c900241f3e339478dec958f92fddbc551f295c992038a3
+      blobs/fd1b291129c607e5d49799f87cb219b27f98acdf: 061ca9d39661d6c6d6de5ba27f79a1cd5770ea247f8d46412a68a498dc5ac9f3
+      refs/main: d36d67e02523717e3871dbcce928f122ed24afbcd375ca81600d4474cb618134
+    links:
+      snapshots/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/1_Pooling/config.json: ../../../blobs/d1514c3162bbe87b343f565fadc62e6c06f04f03
+      snapshots/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/README.md: ../../blobs/44af2e3b0fa3a0b6239e48422972bf755f28fde0
+      snapshots/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/config.json: ../../blobs/72b987fd805cfa2b58c4c8c952b274a11bfd5a00
+      snapshots/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/config_sentence_transformers.json: ../../blobs/fd1b291129c607e5d49799f87cb219b27f98acdf
+      snapshots/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/model.safetensors: ../../blobs/53aa51172d142c89d9012cce15ae4d6cc0ca6895895114379cacb4fab128d9db
+      snapshots/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/modules.json: ../../blobs/952a9b81c0bfd99800fabf352f69c7ccd46c5e43
+      snapshots/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/sentence_bert_config.json: ../../blobs/59d594003bf59880a884c574bf88ef7555bb0202
+      snapshots/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/special_tokens_map.json: ../../blobs/e7b0375001f109a6b8873d756ad4f7bbb15fbaa5
+      snapshots/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/tokenizer.json: ../../blobs/cb202bfe2e3c98645018a6d12f182a434c9d3e02
+      snapshots/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/tokenizer_config.json: ../../blobs/c79f2b6a0cea6f4b564fed1938984bace9d30ff0
+      snapshots/1110a243fdf4706b3f48f1d95db1a4f5529b4d41/vocab.txt: ../../blobs/fb140275c155a9c7c5a3b3e0e77a9e839594a938
+volatile: [_graph.age_seconds, _graph.updated_at]
+docs:
+  debug_prompt.md:
+    sha256: "a522ee5132cb5de5651e0243fa03fdec02b0937edf9fd843bd1a6fd90091695c"
+    render: >-
+      benchmark/envs/code-review-graph/bin/python -c "from code_review_graph.prompts import debug_issue_prompt;
+      print(debug_issue_prompt('<task>')[0].content.text)" > benchmark/systems/code-review-graph/docs/debug_prompt.md
+  skill.md:
+    sha256: "10bc1bd838ade3cbc6cf5c1c836962e5df96f118aa3b02bc5ddfabc82c3c8737"
+    render: >-
+      benchmark/envs/code-review-graph/bin/python -c "from pathlib import Path; from code_review_graph import skills;
+      skills.generate_skills(Path('.'), Path('/tmp/crg-skills'))" && cp /tmp/crg-skills/explore-codebase/SKILL.md
+      benchmark/systems/code-review-graph/docs/skill.md

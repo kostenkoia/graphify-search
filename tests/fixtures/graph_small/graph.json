@@ -1,0 +1,25 @@
+{"directed": false, "multigraph": false, "graph": {}, "hyperedges": [], "built_at_commit": "fixture",
+ "nodes": [
+  {"id": "app_init", "label": "app/__init__.py", "file_type": "code", "source_file": "app/__init__.py", "source_location": "L1", "_origin": "ast", "community": 0, "community_name": "app", "norm_label": "app/__init__.py"},
+  {"id": "app_main", "label": "main.py", "file_type": "code", "source_file": "app/main.py", "source_location": "L1", "_origin": "ast", "community": 0, "community_name": "app", "norm_label": "main.py"},
+  {"id": "app_main_alpha", "label": "alpha()", "file_type": "code", "source_file": "app/main.py", "source_location": "L5", "_origin": "ast", "community": 0, "community_name": "app", "norm_label": "alpha()"},
+  {"id": "app_main_rationale_6", "label": "Compute alpha from x.      Doubles the input.", "file_type": "rationale", "source_file": "app/main.py", "source_location": "L6", "_origin": "ast", "community": 0, "community_name": "app", "norm_label": "compute alpha from x.      doubles the input."},
+  {"id": "app_main_beta", "label": "beta()", "file_type": "code", "source_file": "app/main.py", "source_location": "L13", "_origin": "ast", "community": 0, "community_name": "app", "norm_label": "beta()"},
+  {"id": "app_main_gamma", "label": "Gamma", "file_type": "code", "source_file": "app/main.py", "source_location": "L17", "_origin": "ast", "community": 0, "community_name": "app", "norm_label": "gamma"},
+  {"id": "app_main_gamma_run", "label": ".run()", "file_type": "code", "source_file": "app/main.py", "source_location": "L20", "_origin": "ast", "community": 0, "community_name": "app", "norm_label": ".run()"},
+  {"id": "app_main_trailing", "label": "trailing()", "file_type": "code", "source_file": "app/main.py", "source_location": "L24", "_origin": "ast", "community": 0, "community_name": "app", "norm_label": "trailing()"},
+  {"id": "web_usething", "label": "useThing.ts", "file_type": "code", "source_file": "web/useThing.ts", "source_location": "L1", "_origin": "ast", "community": 1, "community_name": "web", "norm_label": "usething.ts"},
+  {"id": "web_usething_usething", "label": "useThing()", "file_type": "code", "source_file": "web/useThing.ts", "source_location": "L3", "_origin": "ast", "community": 1, "community_name": "web", "norm_label": "usething()"},
+  {"id": "docs_guide", "label": "guide.md", "file_type": "document", "source_file": "docs/guide.md", "source_location": "L1", "_origin": "ast", "community": 2, "community_name": "docs", "norm_label": "guide.md"},
+  {"id": "concept_doubling", "label": "Doubling", "file_type": "concept", "source_file": "docs/guide.md", "source_location": "", "_origin": "ast", "community": 2, "community_name": "docs", "norm_label": "doubling"}
+ ],
+ "links": [
+  {"source": "app_main", "target": "app_main_alpha", "relation": "contains", "confidence": "EXTRACTED", "confidence_score": 1.0, "weight": 1.0, "source_file": "app/main.py", "source_location": "L5", "_origin": "ast"},
+  {"source": "app_main_rationale_6", "target": "app_main_alpha", "relation": "rationale_for", "confidence": "EXTRACTED", "confidence_score": 1.0, "weight": 1.0, "source_file": "app/main.py", "source_location": "L6", "_origin": "ast"},
+  {"source": "app_main_alpha", "target": "app_main_beta", "relation": "calls", "confidence": "EXTRACTED", "confidence_score": 1.0, "weight": 1.0, "source_file": "app/main.py", "source_location": "L10", "_origin": "ast"},
+  {"source": "app_main_gamma_run", "target": "app_main_alpha", "relation": "calls", "confidence": "EXTRACTED", "confidence_score": 1.0, "weight": 1.0, "source_file": "app/main.py", "source_location": "L21", "_origin": "ast"},
+  {"source": "app_main", "target": "app_main_trailing", "relation": "contains", "confidence": "EXTRACTED", "confidence_score": 1.0, "weight": 1.0, "source_file": "app/main.py", "source_location": "L24", "_origin": "ast"},
+  {"source": "app_main_gamma", "target": "app_main_gamma_run", "relation": "method", "confidence": "EXTRACTED", "confidence_score": 1.0, "weight": 1.0, "source_file": "app/main.py", "source_location": "L20", "_origin": "ast"},
+  {"source": "app_main", "target": "app_init", "relation": "imports", "confidence": "EXTRACTED", "confidence_score": 1.0, "weight": 1.0, "source_file": "app/main.py", "source_location": "L2", "_origin": "ast"},
+  {"source": "web_usething_usething", "target": "app_main_alpha", "relation": "references", "confidence": "INFERRED", "confidence_score": 0.5, "weight": 1.0, "source_file": "web/useThing.ts", "source_location": "L4", "_origin": "ast"}
+ ]}

@@ -1,0 +1,33 @@
+adapter: graphify_search
+# inv: the version the recorded `version` step must print; `score.records` refuses a run whose
+# probe carries any other
+# why: this cell runs a wheel built from this repository, so the key tracks its version
+version: {cli: "0.6.0"}
+invocation:
+  # inv: these three name the tool as installed on the machine that runs the benchmark -- the
+  # launcher, the Python that runs it, and that Python's site-packages, whose contents are hashed
+  # into every ledger row
+  # why: they ship as placeholders because no path here can name an installation this repository
+  # does not contain; `prepare` refuses with `launcher missing:` while one does not exist
+  package:
+    launcher: /path/to/your/envs/graphify-search/bin/graphify-search
+    interpreter: /path/to/your/envs/graphify-search/bin/python
+    site: /path/to/your/envs/graphify-search/lib/python3.14/site-packages
+  subcommands:
+    query:     {positional: 1, flags: {-k: {type: int}, --budget: {type: int}, --require-dense: {}, --no-snippets: {}, --no-edges: {}}, rejected: [--graph, --endpoint, --model]}
+    --version: {positional: 0, flags: {}}
+  rejected_subcommands: [index, status, install, uninstall, detect, --help]
+fixed_steps:
+  - {name: version, argv: [graphify-search, --version], quote: null, system_call: true}
+  - {name: query, argv: [graphify-search, query, "<question>", --require-dense], quote: "graphify-search query \"<the user's question, verbatim>\"", system_call: true, ceiling_call: true}
+# NOT DERIVED: the tool states no budget of calls; five matches the two systems beside it
+ceiling: {quote: null, source: null, kind: owner, calls: 5}
+default_configuration: dense
+configurations: {dense: {index: indexes/graphify-search, search_mode: [dense]}}
+sandbox_layout: {graphify-out: "<artifacts>"}
+# why: the child inherits nothing but this map, so the endpoint the run used is on record
+environment: {PATH: "/usr/bin:/bin", LANG: "C.UTF-8", NO_PROXY: "*", GRAPHIFY_SEARCH_ENDPOINT: "http://localhost:1234/v1", GRAPHIFY_SEARCH_MODEL: "text-embedding-nomic-embed-text-v1.5"}
+models: {}
+volatile: []
+docs:
+  SKILL.md: {sha256: "42605075711456d3b5f82c84ee2423bfb889fa97e4a83fa950ea8b199e9a751e"}

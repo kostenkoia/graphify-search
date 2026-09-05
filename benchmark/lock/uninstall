@@ -1,0 +1,68 @@
+#!/bin/bash
+# Once per machine, the inverse of install: every account, ownership, flag, sudoers rule and
+# machine fact install left, removed; the record and the checkout stay.
+source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
+need_root uninstall
+cd "$ROOT"
+
+# inv: a row without an outcome is a run in flight; taking the machine apart under it would leave
+# a ledger row nothing can close
+if [ -f "$BENCH/record/attempts.jsonl" ] && grep -q -v '"outcome"' "$BENCH/record/attempts.jsonl"; then
+  echo "a row has no outcome; finish or abort it before uninstalling" >&2; exit 1
+fi
+
+TMP_ROOT="${BENCH_TMP_ROOT:-/private/tmp/bench-harness}"
+if [ -f "$BENCH/lock/machine.yaml" ]; then
+  TMP_ROOT="$(sed -n 's/^tmp_root: //p' "$BENCH/lock/machine.yaml")"
+fi
+GROUP="$(id -gn "$OWNER")"
+
+# why: the path lists come from the seal verb, so the interpreter that serves them is read before
+# envs/harness, which serves it on an installed machine, is removed below
+INSTRUMENT="$(paths instrument)"
+LOCK="$(paths lock)"
+RECORD="$(paths record || true)"
+SUT="$(paths sut || true)"
+
+# instrument and lock: flags off, back to the owner, writable again
+printf '%s\n' "$INSTRUMENT" "$LOCK" | grep -v '^$' | while read -r rel; do run chflags nouchg "$rel"; done
+printf '%s\n' "$INSTRUMENT" "$LOCK" | grep -v '^$' | while read -r rel; do
+  run chown -h "$OWNER:$GROUP" "$rel"
+  if [ -d "$ROOT/$rel" ]; then run chmod 755 "$rel"; else run chmod 644 "$rel"; fi
+done
+for f in install uninstall unlock lock signpost-hook.sh; do
+  [ -f "$BENCH/lock/$f" ] && run chmod 755 "benchmark/lock/$f"
+done
+
+# record and system under test: back to the owner as trees
+printf '%s\n' "$RECORD" "$SUT" | grep -v '^$' | while read -r rel; do
+  [ -e "$ROOT/$rel" ] && run chown -R "$OWNER:$GROUP" "$rel"
+done
+
+# machine facts, the open marker, the sudoers rule, the sandbox root
+[ -f "$BENCH/lock/machine.yaml" ] && run rm -f "$BENCH/lock/machine.yaml"
+[ -f "$BENCH/lock/UNLOCKED" ] && run rm -f "$BENCH/lock/UNLOCKED"
+[ -f /etc/sudoers.d/bench-harness ] && run rm -f /etc/sudoers.d/bench-harness
+[ -d "$TMP_ROOT" ] && run rm -rf "$TMP_ROOT"
+
+# why: lock and seal run the harness as root, and the bytecode root wrote under harness/ is a
+# root-owned directory the owner cannot remove afterwards
+find "$BENCH/harness" "$ROOT/tests/benchmark" -name __pycache__ -type d | while read -r d; do run rm -rf "$d"; done
+
+# the harness environment install built; the tool environments are the owner's and stay
+[ -d "$BENCH/envs/harness" ] && run rm -rf "$BENCH/envs/harness"
+
+# the signpost hook install added to the project's local settings
+SETTINGS="$ROOT/.claude/settings.json"
+HOOK_CMD="$BENCH/lock/signpost-hook.sh"
+if [ -f "$SETTINGS" ] && command -v jq >/dev/null 2>&1; then
+  run "jq --arg c \"$HOOK_CMD\" '(.hooks.PreToolUse // []) |= map(select(.hooks | all(.command != \$c)))' \"$SETTINGS\" > \"$SETTINGS.tmp\" && mv \"$SETTINGS.tmp\" \"$SETTINGS\""
+  run chown "$OWNER:$GROUP" "$SETTINGS"
+fi
+
+# the account and the group, last, so nothing above is left with an orphaned uid
+if id bench >/dev/null 2>&1; then run "sysadminctl -deleteUser bench"; fi
+if dscl . -read /Groups/bench >/dev/null 2>&1; then run dscl . -delete /Groups/bench; fi
+[ -d /Users/bench ] && run rm -rf /Users/bench
+
+echo "uninstalled: the ledger, the snapshots, the reports and record/runs are untouched"

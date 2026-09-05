@@ -1,0 +1,10 @@
+Traversal: BFS depth=2 | Start: ['alpha()', 'Beta doc', 'gamma.py'] | 12 nodes found
+
+[!] TRUNCATED: showing 4 of 12 nodes (~2000-token budget). The answer may be among the 8 cut nodes — raise the token budget (CLI: --budget) or narrow the query (e.g. context_filter=['call'], or get_node for a specific symbol).
+
+NODE alpha() [src=pkg/a.py loc=L10 community=alpha]
+NODE Compute the beta value.      For each item, [src=pkg/a.py loc=L12 community=alpha]
+NODE gamma.py [src=pkg/gamma.py loc=L1 community=gamma]
+NODE Orphan [src= loc= community=gamma]
+
+... (truncated — 8 more nodes cut by ~2000-token budget. Raise --budget or narrow the query.)

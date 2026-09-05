@@ -1,0 +1,13 @@
+{
+ "status": "ok",
+ "query": "alpha beta",
+ "search_mode": "none",
+ "summary": "Found 2 node(s)",
+ "results": [],
+ "result_count": 0,
+ "results_omitted": 0,
+ "_graph": {
+  "updated_at": "2026-01-01T00:00:00",
+  "age_seconds": 1
+ }
+}

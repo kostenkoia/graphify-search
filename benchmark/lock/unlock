@@ -1,0 +1,19 @@
+#!/bin/bash
+# Open the instrument for one change, with the reason a later reader will read in the seal.
+source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
+need_root unlock
+cd "$ROOT"
+[ -n "$REASON" ] || { echo "unlock needs a reason: sudo $0 \"why\"" >&2; exit 2; }
+# inv: a row without an outcome is a run in flight; opening the instrument under it would change what it measures
+if [ -f "$BENCH/record/attempts.jsonl" ] && grep -q -v '"outcome"' "$BENCH/record/attempts.jsonl"; then
+  echo "a row has no outcome; finish or abort it before unlocking" >&2; exit 1
+fi
+open_instrument
+# why: a bare printf leaves a `:` or `#` in the reason to break the YAML that later reads it
+# back (lock's own reload, and every audit that reads a sealed reason); the YAML `''`-doubling
+# convention makes the scalar survive that round trip, but the line still passes through run's
+# eval, so `$`, backticks, `"` and `\` in a reason are the operator's to avoid
+Q=${REASON//\'/\'\'}
+run "printf '%s\n' \"reason: '$Q'\" \"time: $(date -u +%FT%TZ)\" > \"$BENCH/lock/UNLOCKED\""
+run chown root:wheel "$BENCH/lock/UNLOCKED"
+echo "open: edit, test, commit, then sudo $BENCH/lock/lock"

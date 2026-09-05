@@ -1,0 +1,5 @@
+{"status": "ambiguous", "summary": "'Alpha' matches 2 node(s). Re-run with a qualified_name from disambiguation.",
+ "candidates": [
+   {"id": 1, "kind": "Class", "name": "Alpha", "qualified_name": "/tmp/bench-sandbox/index/pkg/a.py::Alpha", "file_path": "/tmp/bench-sandbox/index/pkg/a.py", "line_start": 5, "line_end": 9},
+   {"id": 2, "kind": "Function", "name": "_alpha", "qualified_name": "/tmp/bench-sandbox/index/pkg/c.py::_alpha", "file_path": "/tmp/bench-sandbox/index/pkg/c.py", "line_start": 1, "line_end": 2}],
+ "hint": "Use a qualified_name from disambiguation as the target parameter.", "_graph": {"updated_at": "x", "age_seconds": 2}}

@@ -1,0 +1,55 @@
+id: graphify-search-rewrite
+kind: own
+package: graphify-search
+version_seen: 0.5.1
+sources:
+  homepage: https://github.com/kostenkoia/graphify-search
+  shipped_skill: SKILL.md
+prescribed_workflow:
+  source: "SKILL.md § 'Ask'"
+  steps:
+    - id: 1
+      name: query
+      quote: "graphify-search query \"<the user's question, verbatim>\""
+      command: 'graphify-search query "<question>" --require-dense --rewrite'
+      note: the question is passed as the user wrote it and no expansion step exists; --require-dense
+        and --rewrite are both options SKILL.md lists for this one command, and the rewrite the second
+        one obtains is the tool's own, not a step the caller performs
+# why: the recipe is one call and the call budget is this harness's own cap (SKILL.md states
+# none), so nothing here departs from what SKILL.md prescribes; the key is kept as an empty list rather than dropped, so a later
+# departure has a place to be written down instead of being made silently
+deviations: []
+
+properties:
+  # inv: this cell reads graphify-search's own frozen index; nothing about what was built differs,
+  # only what the query asks of it
+  index: the graphify-search nomic index, byte for byte, shared rather than rebuilt
+  embedder: text-embedding-nomic-embed-text-v1.5 on the endpoint the environment names
+  rewriter: >-
+    qwen3.8-27b on the same server, one chat completion per query at temperature 0 with
+    max_tokens 1500 and chat_template_kwargs {enable_thinking: false}; the completion's
+    reasoning channel is dropped, the last line is taken and unquoted, and that is the rewrite
+  rewrite_prompt: |
+    /no_think Restate the question below in the vocabulary a Python/TypeScript codebase would use.
+    Answer with 5-12 words only. Identifiers are welcome. No explanation, no quotes, no preamble.
+
+    Question: {question}
+  ranked: >-
+    the rewrite is embedded with the same search_query prefix as the question and each row scores
+    max(cos(question), cos(rewrite)), rounded to three decimals, ties by path then start
+  # inv: records path and start line only, never an end line, so the adapter records no end
+  granularity: symbol_point
+  cost: >-
+    one chat completion and one extra embedding per query on top of graphify-search's one
+    embedding; the chat call dominates the wall clock and most of its completion is a reasoning
+    channel that enable_thinking false does not suppress
+  # inv: the chat call is the only part of this cell that is not arithmetic over frozen files, so
+  # it is the only place two attempts of one question could disagree
+  deterministic: >-
+    the embedding side is graphify-search's; the chat side is asserted by measurement only -- a
+    question is run twice and the two attempts must canonicalise to the same hash
+  budget: 6000 characters over the results array; the ladder drops snippet, edges, then k
+  answer_shape: >-
+    graphify-search's, plus a `rewrite` key after `model` carrying the restatement the ranking
+    used; the key is absent from an answer that asked for none, so the recorded outputs of the
+    cells that do not pass --rewrite are unchanged

@@ -1,0 +1,38 @@
+adapter: graphify_search
+# inv: 0.5.1 is the last release whose `query` took --rewrite, so this cell is pinned there and
+# cannot be rebuilt from this tree; manifest.yaml records it as a stopped experiment
+version: {cli: "0.5.1"}
+status: reference
+invocation:
+  # inv: these three name the tool as installed on the machine that runs the benchmark -- the
+  # launcher, the Python that runs it, and that Python's site-packages, whose contents are hashed
+  # into every ledger row
+  # why: they ship as placeholders because no path here can name an installation this repository
+  # does not contain; `prepare` refuses with `launcher missing:` while one does not exist
+  package:
+    launcher: /path/to/your/envs/graphify-search-rewrite/bin/graphify-search
+    interpreter: /path/to/your/envs/graphify-search-rewrite/bin/python
+    site: /path/to/your/envs/graphify-search-rewrite/lib/pythonX.Y/site-packages
+  subcommands:
+    query:     {positional: 1, flags: {-k: {type: int}, --budget: {type: int}, --require-dense: {}, --rewrite: {}, --no-snippets: {}, --no-edges: {}}, rejected: [--graph, --endpoint, --model]}
+    --version: {positional: 0, flags: {}}
+  rejected_subcommands: [index, status, install, uninstall, detect, --help]
+fixed_steps:
+  - {name: version, argv: [graphify-search, --version], quote: null, system_call: true}
+  - {name: query, argv: [graphify-search, query, "<question>", --require-dense, --rewrite], quote: "graphify-search query \"<the user's question, verbatim>\"", system_call: true, ceiling_call: true}
+# NOT DERIVED: the tool states no budget of calls; five matches the systems beside it
+ceiling: {quote: null, source: null, kind: owner, calls: 5}
+default_configuration: rewrite
+# why: the index is graphify-search's own frozen nomic index, not a copy -- this cell changes what
+# the query asks of it, not what was built, so sharing the directory is what keeps the two cells
+# comparable; prepared_outputs.yaml there is keyed by configuration, recipe and question, and this
+# cell's configuration name and recipe hash are both its own, so neither cell's records are touched
+configurations: {rewrite: {index: indexes/graphify-search, search_mode: [dense]}}
+sandbox_layout: {graphify-out: "<artifacts>"}
+# why: the child inherits nothing but this map, so the endpoint the run used is on record; the
+# chat model answers on the same server as the embedding model and is named here for the same reason
+environment: {PATH: "/usr/bin:/bin", LANG: "C.UTF-8", NO_PROXY: "*", GRAPHIFY_SEARCH_ENDPOINT: "http://localhost:1234/v1", GRAPHIFY_SEARCH_MODEL: "text-embedding-nomic-embed-text-v1.5", GRAPHIFY_SEARCH_CHAT_MODEL: "qwen3.8-27b"}
+models: {}
+volatile: []
+docs:
+  SKILL.md: {sha256: "d8e57f512837b8e8d6e12c879f75abd4bc825e1e0fb76649c9009d5766aa3c1b"}

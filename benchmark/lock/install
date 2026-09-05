@@ -1,0 +1,88 @@
+#!/bin/bash
+# Once per machine: the bench account, the harness environment, ownership of every class, sudoers, machine facts.
+source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
+need_root install
+cd "$ROOT"
+
+# why: a launcher outside envs/ is writable by the owner's user, so it cannot be sealed by ownership
+launchers | while read -r p; do
+  case "$p" in "$BENCH"/envs/*) ;; *) echo "launcher outside benchmark/envs/: $p — move it first (decision 8)" >&2; exit 1 ;; esac
+done
+
+if ! id bench >/dev/null 2>&1; then
+  run "sysadminctl -addUser bench -fullName 'benchmark harness' -shell /usr/bin/false -home /Users/bench -admin no"
+fi
+# why: chown resolves a group through its PrimaryGroupID, and a group record created without one
+# is "illegal group name" to it; the account's own uid is taken where no group holds it yet
+if ! dscl . -read /Groups/bench PrimaryGroupID 2>/dev/null | grep -q "^PrimaryGroupID:"; then
+  gid="$(id -u bench 2>/dev/null || true)"
+  if [ -z "$gid" ] || dscl . -search /Groups PrimaryGroupID "$gid" 2>/dev/null | grep -q .; then
+    gid="$(dscl . -list /Groups PrimaryGroupID | awk '$2 >= 500 && $2 < 1000 {print $2}' | sort -n | tail -1)"
+    gid=$(( ${gid:-499} + 1 ))
+  fi
+  run dscl . -create /Groups/bench PrimaryGroupID "$gid"
+fi
+if [ "$DRY_RUN" = 1 ] || ! dscl . -read /Groups/bench GroupMembership 2>/dev/null | grep -qw "$OWNER"; then
+  run dscl . -append /Groups/bench GroupMembership "$OWNER"
+fi
+
+PY=/Library/Frameworks/Python.framework/Versions/3.14/bin/python3.14
+if [ ! -x "$BENCH/envs/harness/bin/python" ]; then
+  run "$PY" -m venv "$BENCH/envs/harness"
+  run "$BENCH/envs/harness/bin/pip" install -q -r "$BENCH/lock/harness-requirements.txt"
+  run "printf '%s\n' \"$ROOT\" > \"$BENCH/envs/harness/lib/python3.14/site-packages/benchmark-root.pth\""
+fi
+# why: sysadminctl does not always make the home, and a cache directory root makes is one bench
+# cannot write into; the tree is handed over before the warm-up writes the first file
+run mkdir -p /Users/bench/.cache/tiktoken
+run chown -R bench:bench /Users/bench
+run "sudo -u bench env TIKTOKEN_CACHE_DIR=/Users/bench/.cache/tiktoken \"$BENCH/envs/harness/bin/python\" -c 'import tiktoken; tiktoken.get_encoding(\"cl100k_base\")'"
+run "printf '[safe]\n\tdirectory = %s\n' \"$ROOT\" > /Users/bench/.gitconfig"
+run chown bench:bench /Users/bench/.gitconfig
+
+TMP_ROOT="${BENCH_TMP_ROOT:-/private/tmp/bench-harness}"
+run mkdir -p "$TMP_ROOT"
+run "cat > \"$BENCH/lock/machine.yaml\" <<EOF
+bench_uid: \$(id -u bench)
+repo_root: $ROOT
+tmp_root: $TMP_ROOT
+base_url: http://localhost:1234/v1
+home: /Users/bench
+tmpdir: $TMP_ROOT/tmp
+tiktoken_cache: /Users/bench/.cache/tiktoken
+EOF"
+# why: machine.yaml is untracked (git-based paths lock never lists it), so it is pinned here,
+# at the point it is written, rather than by the lock class's own chmod/chown/chflags pass
+run chmod 444 "$BENCH/lock/machine.yaml"
+run chown root:wheel "$BENCH/lock/machine.yaml"
+
+H="$BENCH/envs/harness/bin/python"
+run "sed \"s#<H>#$H#g; s#<OWNER>#$OWNER#g\" \"$BENCH/lock/sudoers.template\" > /etc/sudoers.d/bench-harness"
+run chmod 440 /etc/sudoers.d/bench-harness
+run visudo -cf /etc/sudoers.d/bench-harness
+
+# why: record and system under test → bench; instrument and lock → root
+for cls in record sut; do
+  paths "$cls" | while read -r rel; do run chown -R bench:bench "$rel"; done
+done
+run chown -R bench:bench "$TMP_ROOT"
+find "$BENCH/harness" "$ROOT/tests/benchmark" -name __pycache__ -type d | while read -r d; do run rm -rf "$d"; done
+lock_instrument
+paths lock | while read -r rel; do
+  # why: git tracks the executable bit, so a 555 on a file committed 644 dirties the tree and
+  # require_clean refuses every attempt; only directories and scripts keep the bit
+  if [ -d "$rel" ] || [ -x "$rel" ]; then run chmod 555 "$rel"; else run chmod 444 "$rel"; fi
+  run chown root:wheel "$rel"
+  # why: UF_IMMUTABLE on a directory refuses creating or removing entries even for root, which
+  # would brick unlock's write into benchmark/lock/UNLOCKED; root-owned 555 already refuses
+  # every non-root write, so only the class's files carry the flag
+  [ -d "$rel" ] || run chflags uchg "$rel"
+done
+
+# why: an agent hitting Operation not permitted on a locked or bench-owned path needs to be told
+# where the key is, not left to guess; the hook is local machine state, never committed
+SETTINGS="$ROOT/.claude/settings.json"
+HOOK_CMD="$BENCH/lock/signpost-hook.sh"
+run "mkdir -p \"$ROOT/.claude\"; [ -f \"$SETTINGS\" ] || printf '{}' > \"$SETTINGS\"; jq -e --arg c \"$HOOK_CMD\" '[.hooks.PreToolUse[]?.hooks[]?.command] | index(\$c)' \"$SETTINGS\" >/dev/null 2>&1 || { jq --arg c \"$HOOK_CMD\" '.hooks.PreToolUse += [{matcher: \"Edit|Write|MultiEdit|NotebookEdit\", hooks: [{type: \"command\", command: \$c}]}]' \"$SETTINGS\" > \"$SETTINGS.tmp\" && mv \"$SETTINGS.tmp\" \"$SETTINGS\"; }"
+
+echo "installed; now: sudo $BENCH/lock/lock"

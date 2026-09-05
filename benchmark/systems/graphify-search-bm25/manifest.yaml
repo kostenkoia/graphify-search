@@ -1,0 +1,40 @@
+id: graphify-search-bm25
+kind: own
+package: graphify-search
+version_seen: 0.6.0
+sources:
+  homepage: https://github.com/kostenkoia/graphify-search
+  shipped_skill: SKILL.md
+prescribed_workflow:
+  source: "SKILL.md § 'Ask'"
+  steps:
+    - id: 1
+      name: query
+      quote: "graphify-search query \"<the user's question, verbatim>\""
+      command: 'graphify-search query "<question>"'
+      note: the question is passed as the user wrote it; no expansion step exists
+# why: the recipe is one call and the call budget is this harness's own cap (SKILL.md states
+# none), so nothing here departs from what SKILL.md prescribes; the key is kept as an empty list rather than dropped, so a later
+# departure has a place to be written down instead of being made silently
+deviations: []
+
+properties:
+  # inv: this cell differs from graphify-search's only in that its index holds no vectors, so the
+  # same package and the same recipe fall back to the mode the tool ships for that case
+  embedder: >-
+    none; the index records `vectors: absent`, so `query` ranks with BM25 and reaches no endpoint
+    at all -- the configured URL names a closed port and is never opened
+  ranked: BM25 over identifier-split tokens, k1 1.2 and b 0.75, scores rounded to three decimals,
+    ties by path then start
+  # inv: a zero score means no query term matched the row, so that row is not a match; an answer
+  # can therefore hold fewer than the ten places `-k` allows
+  scored_rows: only rows at least one query term matched
+  indexed_text: the node's label, its path split into identifier parts, its docstrings and at most
+    thirty lines of its body, all split into lower-cased identifier parts of two or more characters
+  # inv: records path and start line only, never an end line, so the adapter records no end
+  granularity: symbol_point
+  deterministic: >-
+    by construction: the ranking is arithmetic over the frozen bm25.json, with the query's terms
+    summed in sorted order and ties broken by path then start, and no model and no network are
+    reached on either side of the index
+  budget: 6000 characters over the results array; the ladder drops snippet, edges, then k
